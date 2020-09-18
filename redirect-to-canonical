@@ -1,0 +1,63 @@
+/** 
+ * This service worker was written to address an issue where product pages were accessible from multiple URLs.  
+ * While we were able to get appropriate canonicals in place, we were limited in that we could not create redirect rules for these.
+ * 
+ * So.. we made a service worker that checks the canonical tag against the request, and then redirects if it doesn't match.
+ * 
+ * You can test this here: https://cloudflareworkers.com/?_ga=2.121767817.342796392.1562183042-1d4c17e1b6d2561f25ac42f49d0553dc#4fbcee4f7582595bd32fa2787a91fcad:https://www.contentkingapp.com/academy/canonical/
+ * 
+ */
+
+addEventListener('fetch', event => {
+  event.passThroughOnException()
+  event.respondWith(handleRequest(event.request))
+})
+
+async function handleRequest(request) {
+
+// Get the requested URL for comparison to canonical
+  let url = new URL(request.url)
+  //console.log("\nPresented URL: " + url)
+  let requestedurl = url.protocol + "//" + url.host + url.pathname
+  //console.log("\nRequested URL: " + requestedurl)
+
+// Read response body
+  let response = await fetch(request)
+
+// Make sure this is text and not an image, etc. 
+  let type = response.headers.get("Content-Type") || ""
+    if (!type.startsWith("text/html")) {
+      // Not text. Don't modify.
+      return response
+    }
+
+// Get text of the page
+  let text = await response.text()
+  // console.log("\nText: " + text)
+
+// Extract canonical tag from the page
+  let regexp = new RegExp('<link rel="canonical" href="(.*)" />', 'gm')
+
+  let canonical
+  while (canonical = regexp.exec(text)) {
+    //console.log("\nMatch: " + canonical[0])
+    let canonicalurl = canonical[1]
+    //console.log("\nCanonical URL: " + canonical[1])
+
+    // Check to see if canonical matches request
+      if (canonicalurl === requestedurl){
+        console.log("\nMatching URLs: " + requestedurl + " equals " + canonicalurl)
+
+        return new Response(text, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers
+        })
+
+      }else{
+        console.log("\nUnMatched URLs: " + requestedurl + " does not equal " + canonicalurl)
+        // Note, we append query parameters in case there was something important there...
+        return Response.redirect(canonicalurl+url.search, 301);
+      }      
+  }
+}
