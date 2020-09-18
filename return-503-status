@@ -1,0 +1,80 @@
+/** 
+ * This service worker returns a 503 status.   There are 2 options for handling.  
+ * 
+ * Option 1 - Return html defined in this worker as the response.body
+ * Option 2 - Return html from another url as the response.body
+ * 
+ * You must select which option you wish to use, and define the settings for each
+ * 
+ * You can test here - https://cloudflareworkers.com/#b76d8b328007689ce47b502c9fbc23f7:http://google.com/
+*/
+
+// Enter 1 or 2 for the option
+const option = "2";
+
+// Enter the date or time when you expect to be back online
+const retryafter = "Wed, 30 Sept 2020 5:30:00 GMT";
+
+// Define html for Option 1 - Write HTML for error message
+const html = `<!DOCTYPE html>
+<body style="text-align:center;">
+  <h1>Pardon our Dust</h1>
+  <p><strong>We are currently working to improve our game, and the site is experiencing planned downtime.</strong></p>
+  <p>We apologize for any inconvenience. We expect this downtime to last up to a few hours.</p>
+  <p>Please check back later, and use the coupon code 'backonline' for 5% off your next order. </p>
+</body>`;
+
+// Define url for Option 2 - Note: should be hosted on a different server than the one getting maintenance
+const errorurl = "https://codepen.io/Kxrl/full/BOPNXN";
+
+
+/**
+ * This function replaces the request with error message and headers.
+ * You should not need to edit this function, as all variables are defined above
+*/
+ 
+async function handleRequest(request) {
+
+// Check the current response.  If this is a 200, we will leave things alone.
+  let response = await fetch(request)
+  const status = response.status
+  if (status !== 200) {
+
+    // Option 1 - Take html display as body with 503 status and retry header.
+        if (option === "1"){
+            let response = new Response(html, {
+            status: 503,
+            statusText: "Service Unavailable",
+          })  
+          // Wrap up:  Set headers for content display and and retry     
+          response.headers.set("content-type", "text/html;charset=UTF-8")     
+          response.headers.set("Retry-After", retryafter)
+          // Return the response
+          return response   
+        }
+          
+    // Option 2 - Fetch a url that will host the error page during downtime.     
+        if (option === "2"){
+            let subrequest = new Request(errorurl, request)
+            let response = await fetch(subrequest);
+            
+            //response = new Response(response.body, response)
+            response = new Response(response.body, {
+              status: 503,
+            statusText: "Service Unavailable",
+          })  
+          // Wrap up:  Set headers for content display and and retry     
+          response.headers.set("content-type", "text/html;charset=UTF-8")     
+          response.headers.set("Retry-After", retryafter)
+          // Return the response
+          return response   
+        }
+  }else{ 
+    // Request is returning 200s. Return original request.
+    return fetch(request) 
+  }
+}
+
+addEventListener('fetch', event => {
+    event.respondWith(handleRequest(event.request))
+})
