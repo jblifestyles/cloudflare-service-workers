@@ -1,5 +1,6 @@
 /**
  * Example using Service Worker to Implement Redirects  
+ * You can see this here https://cloudflareworkers.com/#78a5be935eeb2042b70497a712e46fd2:https://www.cloudflare.com/example
 */ 
 
 addEventListener('fetch', event => {
