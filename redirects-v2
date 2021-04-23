@@ -1,11 +1,11 @@
 /**
  * Example using Service Worker to Implement Redirects  
- * You can see this here https://cloudflareworkers.com/#9c74ebf7703f56d15deac5ccada557ea:https://www.cloudflare.com/old-category.jsp
+ * You can see this here https://cloudflareworkers.com/#31db00788f92250dc6e7ce88fbda5c59:https://blog.cloudflare.com/old-category.asp
 */ 
 
 
 addEventListener('fetch', event => {
-    event.respondWith(fetchAndApply(event.request))
+  event.respondWith(fetchAndApply(event.request))
 })
   
 /**
@@ -14,105 +14,93 @@ addEventListener('fetch', event => {
  */
 async function fetchAndApply(request) {
   //  This extracts the path so you have a pattern to match
-    var url = new URL(request.url);
-    var path = url.pathname;
-  //  console.log('Path', path);
+  var url = new URL(request.url);
+  var path = url.pathname;
+    // console.log('Path', path);
 
   //  This is to set-up any default protocol or host to minimize multiple redirects
   //  You can switch to using requested protocol (2nd option) if needed for dynamic environments
   //  var site = "https://www.cloudflare.com";
-    var site = url.protocol + "//" + url.host;
-  //  console.log('Site', site);
+  var site = url.protocol + "//" + url.host;
+    // console.log('Site:', site);
 
   //  This is a regex to match any extensions that we want to skip, these are static resources
-  var extregex = /\.(css|js|json|otf|ttf|woff|woff2|doc|pdf|ppt|xls|tsv|txt|xml|tif|tiff|vcf|bmp|gif|ief|jpe|jpeg|jpg|ico|png|svg|webp|m1v|mov|mp2|mp3|mp4|mpa|mpe|mpeg|mpg|pbm|pgm|pnm|ppm|pps|ps|qt|ras|rgb|swf|wav|xbm|xpdl|xpm|xwd)$/i;
-  var skipextmatch = extregex.test(path);
-  //  console.log('Skip Filetype',skipextmatch);
+  var staticRegex = /\.(css|js|json|otf|ttf|woff|woff2|doc|pdf|ppt|xls|tsv|txt|xml|tif|tiff|vcf|bmp|gif|ief|jpe|jpeg|jpg|ico|png|svg|webp|m1v|mov|mp2|mp3|mp4|mpa|mpe|mpeg|mpg|pbm|pgm|pnm|ppm|pps|ps|qt|ras|rgb|swf|wav|xbm|xpdl|xpm|xwd)\/?$/i;
+  if (staticRegex.test(path) === true) { 
+    var actionGroup = 'skip';
+    var actionCause = 'Skip filetype:';
+      // console.log(actionCause,path);
+  }
 
   // This is regex to match specifically known files that are needed to load a page, so we can skip them
-  var knownregex = /(specs\.html)|(iframe_history\.html)$/i;
-  var knownmatch = knownregex.test(path);
-  //  console.log(Skip Known',knownmatch);
+  var knownRegex = /(specs\.html)|(iframe_history\.html|\.cloudflare\/ga)$/i;
+  if (knownRegex.test(path) === true) {
+    var actionGroup = 'skip';
+    var actionCause = 'Skip known path:';
+      // console.log(actionCause,path);
+  }
 
   //  This is a regex to match any legacy file extensions, such as .asp or .jsp so we can process them without delaying other requests
-  var legregex = /\.(asp|jsp)$/i;
-  var legacymatch = legregex.test(path);
-  //  console.log('Caught Legacy',legacymatch);
+  var legacyRegex = /\.(asp|jsp)$/i;
+  if (legacyRegex.test(path) === true) {
+    var actionGroup = 'legacy';
+    var actionCause = 'Redirect Legacy:';
+      // console.log(actionCause,path);
+  }
 
-  if (skipextmatch === true | knownmatch === true) {
-    console.log('Skipped: ', path);
-    const response = await fetch(request);
-    return response;
-  } else if (legacymatch === true) {
-    console.log('Legacy: ', path);
-    switch(path) {
-      //  Cases match the path you are redirecting.
-      case "/old-category.jsp":
-        //  Update url here to point to redirection destination
-        console.log('Redirected: ex1.jsp', path);
-        return Response.redirect(site + '/products/cloudflare-workers/', 301);
-        break;
-      case "/example-2.asp":
-        //  Alternatively, you can set the full response if pointing to external url.
-        console.log('Redirected: ex2.asp', path);
-        return Response.redirect('https://support.cloudflare.com/', 301);
-        break; 
-      case "/example-3.jsp":
-        console.log('Redirected: ex3.jsp', path);
-        return Response.redirect('https://developers.cloudflare.com/workers/api/route-matching/', 301);
-        break; 
-      case "/test.asp":
-        console.log('Redirected: test.asp', path);
-        return Response.redirect(site + '/plans', 301);
-        break; 
-      case "/test-2.jsp":
-        console.log('Redirected: test2.jsp', path);
-        return Response.redirect('https://developers.cloudflare.com/workers/about/how-workers-work/', 301);
-        break; 
-      case "/test-3.asp":
-        console.log('Redirected: test3.asp', path);
-        return Response.redirect('https://www.hivedigital.com/', 301);
-        break;                                     
-      default:
-        // in this case we create a blanket redirect for all legacy pages not caught by a rule above.
+  //  If we know the action group, take action, otherwise apply defaults
+  switch(actionGroup) {
+    
+    // This is any bucket that we've flagged to skip straight to loading
+    case "skip":
+      console.log(actionCause, path);
+      const response = await fetch(request);
+      return response;
+      break;
+
+    // This is a custom bucket of "legacy" pages we can check against
+    case "legacy":
+      // console.log(actionCause, path);
+      // create object with list of matches for redirects
+      const legacyRedirects = {
+        '/old-category.jsp': site + '/products/cloudflare-workers/',
+        '/example-2.asp': 'https://support.cloudflare.com/',
+        '/example-3.jsp': 'https://developers.cloudflare.com/workers/api/route-matching/',
+        '/test.asp': site + '/plans',
+        '/test-2.jsp': 'https://developers.cloudflare.com/workers/about/how-workers-work/',
+        '/test-3.asp': 'https://www.hivedigital.com/'
+      } 
+      var legacyDestination = legacyRedirects[path];
+      if (typeof legacyDestination != 'undefined') {
+        console.log(actionCause,path, '->', legacyDestination);
+        return Response.redirect(legacyDestination, 301);
+      } else {
+        console.log('Default', actionCause, path);
         return Response.redirect('https://www.hivedigital.com/2018/12/18/redirects-using-cloudflare-workers/', 301);
-        break;
-    }  
-  } else {
-    console.log('Not Skipped: ', path);
-    // Ideally this final else statement is for things we couldn't catch in a "bucket"
-    switch(path) {
-      //  Cases match the path you are redirecting.
-      case "/old-category":
-        //  Update url here to point to redirection destination
-        console.log('Redirected: ex1', path);
-        return Response.redirect(site + '/products/cloudflare-workers/', 301);
-        break;
-      case "/example-2":
-        //  Alternatively, you can set the full response if pointing to external url.
-        console.log('Redirected: ex2', path);
-        return Response.redirect('https://support.cloudflare.com/', 301);
-        break; 
-      case "/example-3":
-        console.log('Redirected: ex3', path);
-        return Response.redirect('https://developers.cloudflare.com/workers/api/route-matching/', 301);
-        break; 
-      case "/test":
-        console.log('Redirected: test', path);
-        return Response.redirect(site + '/plans', 301);
-        break; 
-      case "/test-2":
-        console.log('Redirected: test2', path);
-        return Response.redirect('https://developers.cloudflare.com/workers/about/how-workers-work/', 301);
-        break; 
-      case "/test-3":
-        console.log('Redirected: test3', path);
-        return Response.redirect('https://www.hivedigital.com/2018/12/18/redirects-using-cloudflare-workers/', 301);
-        break;                                     
-      default:
+      }
+      break;
+
+    // In this case, we didn't apply a pattern match, so there may be some one-off redirects to implement.
+    default:
+      // console.log('No Bucket: ', path);
+      // create object with list of matches for redirects
+      const noBucketredirects = {
+        '/foo-category': site + '/products/cloudflare-workers/',
+        '/foo-2': 'https://support.cloudflare.com/',
+        '/foo-3': 'https://developers.cloudflare.com/workers/api/route-matching/',
+        '/test': site + '/plans',
+        '/test-2': 'https://developers.cloudflare.com/workers/about/how-workers-work/',
+        '/test-3': 'https://www.hivedigital.com/'
+      } 
+      var noBucketdestination = noBucketredirects[path];
+      if (typeof noBucketdestination != 'undefined') {
+        console.log('Default: ',path,'->',noBucketdestination);
+        return Response.redirect(noBucketdestination, 301);
+      } else {
+        console.log('Load: ',path);
         const response = await fetch(request);
         return response;
-        break;
-    }
+      }
+      break;                
   }
 }
