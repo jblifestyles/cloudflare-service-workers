@@ -1,0 +1,32 @@
+/** 
+ * This service worker appends a header response for robots tag
+ * Weird quirk where the content-type was maybe being erased.. didn't troubleshoot here, as I was only modifying pdf files.
+*/
+
+addEventListener("fetch", (event) => {
+  event.respondWith(handleRequest(event.request));
+});
+
+async function handleRequest(request) {
+  const response = await fetch(request);
+
+  // Clone the response so that it's no longer immutable 
+  const {pathname} = new URL(request.url);
+  const newResponse = new Response(response.body, response);
+
+  // In this case, we are modifing the robots tag based on pathname .. 
+  if (pathname.includes("indexifembedded")) {
+    newResponse.headers.set('Content-Type','application/pdf');
+    newResponse.headers.append('X-Robots-Tag','googlebot:noindex,indexifembedded');
+    console.log('indexifembedded');
+  };
+
+  // In this case, we are modifing the robots tag based on different pathname .. 
+  if (pathname.includes("noindexonly")) {
+    newResponse.headers.set('Content-Type','application/pdf');
+    newResponse.headers.append('X-Robots-Tag','googlebot:noindex');
+    console.log('noindex');
+  };
+
+  return newResponse;
+}
