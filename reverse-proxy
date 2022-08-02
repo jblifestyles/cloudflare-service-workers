@@ -1,0 +1,35 @@
+/** 
+ * This service worker retrieves another site/page when a specific path is accessed
+*/
+
+
+const LIVE_DOMAIN = 'www.domain.com'
+const PROXY_FROM_DOMAIN = 'blog.domain.com'
+const SUBDIR_PATH = '/blog'
+
+// Optional additional proxy path, helpful for resources like /images
+const ADDITIONAL_PATH = '/resources'
+
+addEventListener("fetch", event => {
+    var f_url = new URL(event.request.url);
+    if (f_url.pathname.startsWith(SUBDIR_PATH)||f_url.pathname.startsWith (ADDITIONAL_PATH)) {
+    handleSubdir(event, f_url);
+    event.respondWith(handleSubdir(event.request));
+  } else {
+    return;
+  }
+});
+
+async function handleSubdir(request) {
+    var trueSourceURL = new URL(request.url);
+    trueSourceURL.hostname = PROXY_FROM_DOMAIN;
+    return fetch(trueSourceURL, request, { 
+      cf: { 
+        resolveOverride: 'LIVE_DOMAIN' 
+      },
+      // Additional header to allow httpauth pass-through
+      headers: {
+        'Access-Control-Allow-Headers': 'x-requested-with, accept, authorization'
+      },
+    })
+}
