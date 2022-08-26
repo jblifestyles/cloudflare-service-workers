@@ -35,10 +35,10 @@ const errorurl = "https://codepen.io/Kxrl/full/BOPNXN";
  
 async function handleRequest(request) {
 
-// Check the current response.  If this is a 200, we will leave things alone.
+// Check the current response.  If this is a 400 or 500 status, we will trigger a 503
   let response = await fetch(request)
   const status = response.status
-  if (status !== 200) {
+  if (status >410) {
 
     // Option 1 - Take html display as body with 503 status and retry header.
         if (option === "1"){
@@ -70,7 +70,7 @@ async function handleRequest(request) {
           return response   
         }
   }else{ 
-    // Request is returning 200s. Return original request.
+    // Request is returning something other than a 400 or 500. Return original request.
     return fetch(request) 
   }
 }
